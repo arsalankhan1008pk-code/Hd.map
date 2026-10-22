@@ -1,0 +1,99 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#087443">
+<title>HD Map Pakistan</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}html,body{height:100%;margin:0;font-family:Arial,sans-serif}
+body{display:flex;flex-direction:column;background:#f4f7f5}
+header{padding:12px 14px;background:#087443;color:#fff}h1{font-size:19px;margin:0 0 5px}
+header p{font-size:12px;margin:0}.controls{display:flex;gap:7px;padding:9px;background:#fff}
+input,button{font-size:14px;border-radius:8px;padding:10px}input{min-width:0;flex:1;border:1px solid #aaa}
+button{border:0;color:#fff;background:#087443;cursor:pointer}.secondary{background:#075da8!important}
+.alert{background:#a12626!important}#status{padding:8px 10px;font-size:12px;background:#fff;color:#333}
+#map{flex:1;min-height:260px;width:100%}.report{padding:9px;background:#fff;border-top:1px solid #ddd}
+.report h2{font-size:14px;margin:0 0 7px}.report p{font-size:12px;margin:0 0 8px;color:#444}
+.reportButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.reportButtons button{padding:9px 4px;font-size:12px}
+#reports{font-size:12px;margin-top:8px;color:#333}footer{padding:7px;text-align:center;font-size:11px;background:#fff}a{color:#075da8}
+</style>
+</head>
+<body>
+<header><h1>Pakistan HD Map</h1><p>Daily Ride Bazar aur Sassta Bazar ke liye</p></header>
+<div class="controls">
+<input id="place" type="search" placeholder="Shehar, area ya jagah likhein" aria-label="Jagah search karein">
+<button id="searchBtn">Search</button>
+</div>
+<div class="controls"><button id="gpsBtn" class="secondary">Meri Location</button><button id="clearBtn">Markers Hataein</button></div>
+<div id="status" role="status">Map load ho raha hai. Internet zaroori hai.</div>
+<main id="map" aria-label="Pakistan ka interactive map"></main>
+<section class="report">
+<h2>Road ki halat report karein</h2>
+<p>Road band, kharab ya khatarnak ho to map par us jagah tap karke report karein. Yeh demo report sirf is device par nazar aayegi; doosre drivers ko abhi share nahi hoti.</p>
+<div class="reportButtons">
+<button class="alert" data-kind="Road band">Road band</button>
+<button class="alert" data-kind="Road kharab">Road kharab</button>
+<button class="alert" data-kind="Khatarnak road">Khatarnak road</button>
+</div>
+<div id="reports">Abhi koi report nahi. Report se pehle map par jagah select karein.</div>
+</section>
+<footer>Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const statusBox=document.getElementById('status'),reportsBox=document.getElementById('reports');
+const map=L.map('map').setView([30.3753,69.3451],5);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'}).addTo(map);
+let selectedPoint=null,searchMarker=null,gpsMarker=null;
+function setStatus(message){statusBox.textContent=message}
+map.on('click',event=>{selectedPoint=event.latlng;setStatus('Jagah select ho gayi. Ab road report kar sakte hain.')});
+async function searchPlace(){
+const query=document.getElementById('place').value.trim();
+if(!query){setStatus('Pehle shehar, area ya jagah ka naam likhein.');return}
+setStatus('Jagah search ho rahi hai...');
+const params=new URLSearchParams({q:query+', Pakistan',format:'jsonv2',limit:'1',countrycodes:'pk'});
+try{
+const response=await fetch('https://nominatim.openstreetmap.org/search?'+params.toString(),{headers:{'Accept':'application/json'}});
+if(!response.ok)throw new Error('Search unavailable');
+const results=await response.json();
+if(!results.length){setStatus('Jagah nahi mili. Naam dobara check karein.');return}
+const result=results[0],latlng=[Number(result.lat),Number(result.lon)];
+map.setView(latlng,16);selectedPoint=L.latLng(latlng[0],latlng[1]);
+if(searchMarker)map.removeLayer(searchMarker);
+searchMarker=L.marker(latlng).addTo(map).bindPopup(result.display_name).openPopup();
+setStatus('Jagah mil gayi: '+result.display_name);
+}catch(error){setStatus('Search abhi nahi chal rahi. Internet check karein.')}
+}
+document.getElementById('searchBtn').addEventListener('click',searchPlace);
+document.getElementById('place').addEventListener('keydown',event=>{if(event.key==='Enter')searchPlace()});
+document.getElementById('gpsBtn').addEventListener('click',()=>{
+if(!navigator.geolocation){setStatus('Is browser mein GPS support nahi hai.');return}
+setStatus('GPS permission ka intezar hai...');
+navigator.geolocation.getCurrentPosition(position=>{
+const latlng=[position.coords.latitude,position.coords.longitude];selectedPoint=L.latLng(latlng[0],latlng[1]);map.setView(latlng,17);
+if(gpsMarker)map.removeLayer(gpsMarker);
+gpsMarker=L.circleMarker(latlng,{radius:9,color:'#075da8',fillColor:'#2196f3',fillOpacity:.9,weight:3}).addTo(map).bindPopup('Aapki GPS location').openPopup();
+setStatus('GPS location mil gayi. Taqreebi accuracy: '+Math.round(position.coords.accuracy)+' metres.');
+},error=>{
+const messages={1:'GPS permission allow karein.',2:'Location nahi mili. Phone ka Location on karein.',3:'GPS mein der hui. Dobara koshish karein.'};
+setStatus(messages[error.code]||'GPS location nahi mil saki.');
+},{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
+});
+document.querySelectorAll('[data-kind]').forEach(button=>button.addEventListener('click',()=>{
+if(!selectedPoint){setStatus('Pehle map par jagah tap karein ya GPS use karein.');return}
+const kind=button.dataset.kind;
+L.marker(selectedPoint).addTo(map).bindPopup(kind+'<br>Report ki gayi jagah').openPopup();
+const item=document.createElement('div');
+item.textContent=kind+' — '+selectedPoint.lat.toFixed(5)+', '+selectedPoint.lng.toFixed(5)+' (demo report)';
+reportsBox.prepend(item);
+setStatus('Demo report map par add ho gayi. Yeh live road status ki tasdeeq nahi hai.');
+}));
+document.getElementById('clearBtn').addEventListener('click',()=>{
+if(searchMarker)map.removeLayer(searchMarker);if(gpsMarker)map.removeLayer(gpsMarker);
+searchMarker=null;gpsMarker=null;setStatus('Search aur GPS markers hata diye gaye.');
+});
+</script>
+</body>
+</html>
