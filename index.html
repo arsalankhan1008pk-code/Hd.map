@@ -230,9 +230,8 @@ gpsCircle.setRadius(pos.coords.accuracy);
 
 if(followGPS){
 map.setView(p,18,{animate:false});
-}
-
 status('GPS accuracy taqreeban '+Math.round(pos.coords.accuracy)+' meter');
+}
 }
 
 function errorGPS(err){
