@@ -1,35 +1,51 @@
+
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakistan Ka Map - Live GPS</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pakistan HD Live Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{height:100vh;overflow:hidden}
-#map{height:100vh;width:100vw}
-.header{position:absolute;top:0;left:0;right:0;z-index:1000;background:#0a7a42;color:#fff;padding:12px;text-align:center;font-weight:bold;box-shadow:0 2px 10px #0003}
-.controls{position:absolute;top:60px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:8px}
-.btn{background:#fff;border:none;padding:12px 16px;border-radius:10px;font-weight:bold;box-shadow:0 2px 10px #0004;min-width:140px}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial}
+#map{height:100dvh;width:100vw}
+.header{position:absolute;top:0;left:0;right:0;z-index:1000;background:#087a42;color:white;text-align:center;padding:14px;font-weight:bold}
+.controls{position:absolute;top:65px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+button{background:white;border:0;padding:12px;border-radius:9px;font-weight:bold;box-shadow:0 2px 8px #777}
 </style>
 </head>
 <body>
-<div class="header">Pakistan Ka Saaf Naqsha - Live GPS</div>
+<div class="header">Pakistan Ka Asli Live Map</div>
 <div id="map"></div>
 <div class="controls">
-<button class="btn" id="satBtn" onclick="toggleMap()">🛰️ Satellite Dekho</button>
-<button class="btn" onclick="liveLocation()">📍 Meri Live Location</button>
+<button onclick="toggleMap()">🛰️ Satellite / Road</button>
+<button onclick="gps()">📍 Meri Live Location</button>
+<button onclick="pakistan()">🇵🇰 Pakistan Map</button>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-var map=L.map('map',{zoomControl:false}).setView([30.3753,69.3451],6);
-L.control.zoom({position:'bottomright'}).addTo(map);
-var street=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-var satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
-var isSat=false;
-function toggleMap(){if(isSat){map.removeLayer(satellite);map.addLayer(street);document.getElementById('satBtn').innerText='🛰️ Satellite Dekho';isSat=false;}else{map.removeLayer(street);map.addLayer(satellite);document.getElementById('satBtn').innerText='🗺️ Road Map Dekho';isSat=true;}}
-function liveLocation(){map.locate({setView:true,maxZoom:16,enableHighAccuracy:true});}
-map.on('locationfound',function(e){L.marker(e.latlng).addTo(map).bindPopup('Aap Yahan Hain').openPopup();L.circle(e.latlng,e.accuracy,{color:'#0a7a42',fillOpacity:0.15}).addTo(map);});
-map.on('locationerror',function(){alert('GPS on karen aur location permission den!');});
+const map=L.map('map').setView([30.3753,69.3451],6);
+const road=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'});
+let isSat=false,marker=null,circle=null;
+function toggleMap(){
+if(isSat){map.removeLayer(sat);road.addTo(map);}
+else{map.removeLayer(road);sat.addTo(map);}
+isSat=!isSat;
+}
+function pakistan(){map.setView([30.3753,69.3451],6);}
+function gps(){
+if(!navigator.geolocation){alert('GPS support nahi hai');return;}
+navigator.geolocation.getCurrentPosition(p=>{
+const pos=[p.coords.latitude,p.coords.longitude];
+map.setView(pos,17);
+if(marker)map.removeLayer(marker);
+if(circle)map.removeLayer(circle);
+marker=L.marker(pos).addTo(map).bindPopup('Aapki GPS Location').openPopup();
+circle=L.circle(pos,{radius:p.coords.accuracy,color:'#087a42',fillOpacity:.12}).addTo(map);
+},()=>alert('GPS on karein aur location permission allow karein.'),{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
 </script>
 </body>
 </html>
