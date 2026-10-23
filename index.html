@@ -1,53 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Pakistan hd.map</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>html,body,#map{height:100%;margin:0;padding:0} .top{position:absolute;top:0;width:100%;z-index:1000;background:#1976d2;color:white;text-align:center;padding:8px;font-weight:bold}</style>
+<style>
+body{margin:0;padding:0}
+#map{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%}
+.top{position:absolute;top:0;left:0;right:0;z-index:1000;background:#1976d2;color:white;text-align:center;padding:10px;font-weight:bold}
+.sbox{position:absolute;top:50px;left:10px;right:10px;z-index:1000;background:white;border-radius:20px;display:flex;padding:5px;box-shadow:0 2px 5px rgba(0,0,0,0.3)}
+.sbox input{flex:1;border:0;outline:0;padding:8px}
+.sbox button{border:0;background:#1976d2;color:white;width:32px;border-radius:50%}
+.zoom{position:absolute;bottom:20px;left:10px;z-index:1000}
+.zoom button{width:38px;height:38px;display:block;background:white;border:1px solid #ccc;font-size:20px}
+</style>
 </head>
 <body>
 <div class="top">Pakistan hd.map</div>
+<div class="sbox"><input id="qq" placeholder="Search Pakistan..."><button onclick="search()">🔍</button></div>
 <div id="map"></div>
+<div class="zoom"><button onclick="map.zoomIn()">+</button><button onclick="map.zoomOut()">-</button></div>
 <script>
-var map = L.map('map', {
-  zoomControl:false,
-  minZoom:3,
-  maxZoom:20
-}).setView([24.8607, 67.0011], 13);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map).setOpacity(0);
-
-var userMarker=null, accCircle=null;
-var firstFix=true;
-
-function onLocationFound(e){
-  var radius = e.accuracy;
-  if(!userMarker){
-    userMarker = L.marker(e.latlng).addTo(map);
-    accCircle = L.circle(e.latlng, radius).addTo(map);
-  } else {
-    userMarker.setLatLng(e.latlng);
-    accCircle.setLatLng(e.latlng).setRadius(radius);
-  }
-  if(firstFix){
-    map.setView(e.latlng, 16);
-    firstFix=false;
-  }
+var map = L.map('map',{zoomControl:false}).setView([24.8607,67.0011],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,maxNativeZoom:19}).addTo(map);
+var m=null;
+var um=null, uc=null;
+var first=true;
+map.on('locationfound',function(e){
+ if(!um){ um=L.marker(e.latlng).addTo(map); uc=L.circle(e.latlng,e.accuracy).addTo(map); }
+ else{ um.setLatLng(e.latlng); uc.setLatLng(e.latlng).setRadius(e.accuracy); }
+ if(first){ map.setView(e.latlng,15); first=false; }
+});
+map.locate({watch:true,enableHighAccuracy:true,setView:false});
+map.on('click',function(e){ if(m) map.removeLayer(m); m=L.marker(e.latlng).addTo(map); });
+function search(){
+ var q=document.getElementById('qq').value;
+ fetch('https://nominatim.openstreetmap.org/search?format=json&q='+q+'&countrycodes=pk&limit=1').then(r=>r.json()).then(d=>{
+  if(d[0]){ var ll=[d[0].lat,d[0].lon]; map.setView(ll,16); if(m) map.removeLayer(m); m=L.marker(ll).addTo(map); }
+ });
 }
-
-map.on('locationfound', onLocationFound);
-map.locate({watch:true, enableHighAccuracy:true, setView:false, maxZoom:16});
-
-// Buttons
-function zoomIn(){ map.zoomIn(); }
-function zoomOut(){ map.zoomOut(); }
+setTimeout(function(){ map.invalidateSize(); }, 500);
 </script>
-<div style="position:absolute;bottom:20px;left:10px;z-index:1000">
-<button onclick="zoomIn()" style="display:block;width:35px;height:35px;font-size:20px">+</button>
-<button onclick="zoomOut()" style="display:block;width:35px;height:35px;font-size:20px">-</button>
-</div>
 </body>
 </html>
