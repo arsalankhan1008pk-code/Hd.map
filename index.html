@@ -1,26 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakistan HD Map - Sassta Bazar</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
+<title>Pakistan Ka Map - Live GPS</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}
-header{height:54px;background:#087443;color:white;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold}
-#map{height:calc(100% - 54px);width:100%;min-height:400px;background:#eee}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{height:100vh;overflow:hidden}
+#map{height:100vh;width:100vw}
+.header{position:absolute;top:0;left:0;right:0;z-index:1000;background:#0a7a42;color:#fff;padding:12px;text-align:center;font-weight:bold;box-shadow:0 2px 10px #0003}
+.controls{position:absolute;top:60px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+.btn{background:#fff;border:none;padding:12px 16px;border-radius:10px;font-weight:bold;box-shadow:0 2px 10px #0004;min-width:140px}
 </style>
 </head>
 <body>
-
-<header>Pakistan Clear Map</header>
+<div class="header">Pakistan Ka Saaf Naqsha - Live GPS</div>
 <div id="map"></div>
-
+<div class="controls">
+<button class="btn" id="satBtn" onclick="toggleMap()">🛰️ Satellite Dekho</button>
+<button class="btn" onclick="liveLocation()">📍 Meri Live Location</button>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="index.js"></script>
-
+<script>
+var map=L.map('map',{zoomControl:false}).setView([30.3753,69.3451],6);
+L.control.zoom({position:'bottomright'}).addTo(map);
+var street=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+var satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
+var isSat=false;
+function toggleMap(){if(isSat){map.removeLayer(satellite);map.addLayer(street);document.getElementById('satBtn').innerText='🛰️ Satellite Dekho';isSat=false;}else{map.removeLayer(street);map.addLayer(satellite);document.getElementById('satBtn').innerText='🗺️ Road Map Dekho';isSat=true;}}
+function liveLocation(){map.locate({setView:true,maxZoom:16,enableHighAccuracy:true});}
+map.on('locationfound',function(e){L.marker(e.latlng).addTo(map).bindPopup('Aap Yahan Hain').openPopup();L.circle(e.latlng,e.accuracy,{color:'#0a7a42',fillOpacity:0.15}).addTo(map);});
+map.on('locationerror',function(){alert('GPS on karen aur location permission den!');});
+</script>
 </body>
 </html>
