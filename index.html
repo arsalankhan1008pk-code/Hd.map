@@ -8,40 +8,69 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 body{margin:0;padding:0}
-#map{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%}
-.top{position:absolute;top:0;left:0;right:0;z-index:1000;background:#1976d2;color:white;text-align:center;padding:10px;font-weight:bold}
-.sbox{position:absolute;top:50px;left:10px;right:10px;z-index:1000;background:white;border-radius:20px;display:flex;padding:5px;box-shadow:0 2px 5px rgba(0,0,0,0.3)}
-.sbox input{flex:1;border:0;outline:0;padding:8px}
-.sbox button{border:0;background:#1976d2;color:white;width:32px;border-radius:50%}
-.zoom{position:absolute;bottom:20px;left:10px;z-index:1000}
-.zoom button{width:38px;height:38px;display:block;background:white;border:1px solid #ccc;font-size:20px}
+#map{position:absolute;top:0;left:0;right:0;bottom:0;height:100%;width:100%}
+.top{position:absolute;top:0;left:0;right:0;z-index:1000;background:#1976d2;color:white;text-align:center;padding:10px;font-weight:bold;font-size:17px}
+.sbox{position:absolute;top:50px;left:10px;right:10px;z-index:1000;background:white;border-radius:25px;display:flex;align-items:center;padding:5px 6px;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.sbox input{flex:1;border:0;outline:0;padding:8px 12px;font-size:15px;border-radius:25px}
+.sbox button{border:0;background:#1976d2;color:white;width:36px;height:36px;border-radius:50%;font-size:16px}
+.modes{position:absolute;top:102px;left:10px;z-index:1000;background:white;border-radius:8px;display:flex;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+.modes button{border:0;padding:7px 14px;background:white;font-weight:bold}
+.modes button.active{background:#1976d2;color:white}
+.zoom{position:absolute;bottom:20px;left:10px;z-index:1000;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+.zoom button{width:42px;height:38px;display:block;background:white;border:0;border-bottom:1px solid #ddd;font-size:22px}
+.rbtns{position:absolute;bottom:20px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+.rbtns button{width:42px;height:42px;background:white;border:0;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-size:18px}
 </style>
 </head>
 <body>
 <div class="top">Pakistan hd.map</div>
-<div class="sbox"><input id="qq" placeholder="Search Pakistan..."><button onclick="search()">🔍</button></div>
+<div class="sbox"><input id="q" placeholder="Search Pakistan..."><button onclick="doSearch()">🔍</button></div>
+<div class="modes"><button id="mapB" class="active" onclick="setMap()">Map</button><button id="satB" onclick="setSat()">Satellite</button></div>
 <div id="map"></div>
 <div class="zoom"><button onclick="map.zoomIn()">+</button><button onclick="map.zoomOut()">-</button></div>
+<div class="rbtns"><button onclick="goHome()">🏠</button><button onclick="goLoc()">📍</button></div>
 <script>
-var map = L.map('map',{zoomControl:false}).setView([24.8607,67.0011],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,maxNativeZoom:19}).addTo(map);
-var m=null;
-var um=null, uc=null;
-var first=true;
-map.on('locationfound',function(e){
- if(!um){ um=L.marker(e.latlng).addTo(map); uc=L.circle(e.latlng,e.accuracy).addTo(map); }
- else{ um.setLatLng(e.latlng); uc.setLatLng(e.latlng).setRadius(e.accuracy); }
- if(first){ map.setView(e.latlng,15); first=false; }
+var map = L.map('map',{zoomControl:false,minZoom:3,maxZoom:19}).setView([24.8607,67.0011],13);
+var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,maxNativeZoom:19}).addTo(map);
+var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:19});
+var searchPin = null;
+var userDot = null;
+var userCircle = null;
+var firstFix = true;
+function setMap(){ map.addLayer(osm); try{map.removeLayer(sat);}catch(e){} document.getElementById('mapB').classList.add('active'); document.getElementById('satB').classList.remove('active'); }
+function setSat(){ map.addLayer(sat); try{map.removeLayer(osm);}catch(e){} document.getElementById('satB').classList.add('active'); document.getElementById('mapB').classList.remove('active'); }
+map.on('locationfound', function(e){
+  if(!userDot){
+    userDot = L.circleMarker(e.latlng,{radius:8,color:'white',fillColor:'#1976d2',fillOpacity:1,weight:3}).addTo(map);
+    userCircle = L.circle(e.latlng,e.accuracy,{color:'#1976d2',fillColor:'#1976d2',fillOpacity:0.12,weight:1}).addTo(map);
+  } else {
+    userDot.setLatLng(e.latlng);
+    userCircle.setLatLng(e.latlng).setRadius(e.accuracy);
+  }
+  if(firstFix){ map.setView(e.latlng,16); firstFix=false; }
 });
-map.locate({watch:true,enableHighAccuracy:true,setView:false});
-map.on('click',function(e){ if(m) map.removeLayer(m); m=L.marker(e.latlng).addTo(map); });
-function search(){
- var q=document.getElementById('qq').value;
- fetch('https://nominatim.openstreetmap.org/search?format=json&q='+q+'&countrycodes=pk&limit=1').then(r=>r.json()).then(d=>{
-  if(d[0]){ var ll=[d[0].lat,d[0].lon]; map.setView(ll,16); if(m) map.removeLayer(m); m=L.marker(ll).addTo(map); }
- });
+map.locate({watch:true,enableHighAccuracy:true,setView:false,maximumAge:5000});
+function goLoc(){ firstFix=true; map.locate({setView:false,enableHighAccuracy:true}); }
+function goHome(){ map.setView([30.3753,69.3451],5); }
+map.on('click', function(e){
+  if(searchPin) map.removeLayer(searchPin);
+  searchPin = L.marker(e.latlng).addTo(map);
+});
+function doSearch(){
+  var v=document.getElementById('q').value.trim();
+  if(!v) return;
+  fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(v)+'&countrycodes=pk&limit=1')
+  .then(r=>r.json()).then(d=>{
+    if(d && d[0]){
+      var ll=[parseFloat(d[0].lat),parseFloat(d[0].lon)];
+      map.setView(ll,16);
+      if(searchPin) map.removeLayer(searchPin);
+      searchPin = L.marker(ll).addTo(map).bindPopup(d[0].display_name).openPopup();
+    } else { alert('Not found'); }
+  });
 }
-setTimeout(function(){ map.invalidateSize(); }, 500);
+document.getElementById('q').addEventListener('keydown', function(e){ if(e.key==='Enter'){ doSearch(); } });
+setTimeout(function(){ map.invalidateSize(); }, 800);
 </script>
 </body>
 </html>
