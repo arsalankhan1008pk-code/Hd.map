@@ -83,7 +83,7 @@ border-bottom:1px solid #ddd
 
 <div id="btns">
 <button onclick="map.setView([30.3753,69.3451],6)">🏠</button>
-<button id="gps" onclick="gps()">📍</button>
+<button id="gps" onclick="liveGPS()">📍</button>
 </div>
 
 <div id="map"></div>
@@ -108,6 +108,8 @@ maxZoom:22,maxNativeZoom:19
 road.addTo(map);
 let cur=road;
 let pin,myPin,myCircle;
+let watchId=null;
+let liveOn=false;
 
 function badlo(t){
 map.removeLayer(cur);
@@ -139,21 +141,47 @@ document.getElementById('q').addEventListener('keydown',e=>{
 if(e.key=='Enter') talash();
 });
 
-function gps(){
-navigator.geolocation.getCurrentPosition(p=>{
+function liveGPS(){
+if(liveOn){
+// Band karo
+if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+liveOn=false;
+document.getElementById('gps').style.background='#1a73e8';
+document.getElementById('gps').style.color='white';
+return;
+}
+
+if(!navigator.geolocation){
+alert('GPS support nahi hai');
+return;
+}
+
+liveOn=true;
+document.getElementById('gps').style.background='red';
+document.getElementById('gps').style.color='white';
+
+watchId=navigator.geolocation.watchPosition(p=>{
 let ll=[p.coords.latitude,p.coords.longitude];
+
 if(myPin) map.removeLayer(myPin);
 if(myCircle) map.removeLayer(myCircle);
+
 myCircle=L.circle(ll,{
 radius:p.coords.accuracy,
 color:'#1a73e8',fillOpacity:0.15
 }).addTo(map);
+
 myPin=L.marker(ll).addTo(map);
 map.setView(ll,18);
+
 },()=>{
-alert('Location ON karo');
+alert('Location ON karo aur Allow dabao');
+liveOn=false;
+document.getElementById('gps').style.background='#1a73e8';
 },{
-enableHighAccuracy:true
+enableHighAccuracy:true,
+maximumAge:0,
+timeout:10000
 });
 }
 </script>
