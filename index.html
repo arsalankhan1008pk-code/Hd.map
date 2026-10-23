@@ -59,10 +59,10 @@ const pakistan=L.latLngBounds([23.4,60.5],[37.2,77.9]);
 const map=L.map('map',{
 center:[30.3753,69.3451],
 zoom:6,
-minZoom:5,
+minZoom:3,
 maxZoom:19,
 maxBounds:pakistan,
-maxBoundsViscosity:1,
+maxBoundsViscosity:0.5,
 zoomControl:false
 });
 
@@ -94,11 +94,11 @@ document.getElementById('status').textContent=msg;
 }
 
 function zoomIn(){
-map.setZoom(Math.min(map.getZoom()+1,19));
+map.zoomIn(1);
 }
 
 function zoomOut(){
-map.setZoom(Math.max(map.getZoom()-1,5));
+map.zoomOut(1);
 }
 
 function roadMap(){
