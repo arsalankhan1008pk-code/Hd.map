@@ -1,201 +1,258 @@
 
 <!DOCTYPE html>
-<html lang="ur">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pakistan HD Map</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 <style>
 *{box-sizing:border-box}
-html,body,#map{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif}
-#map{position:absolute;inset:0;background:#e8e8e8}
-#top{position:absolute;top:0;left:0;right:0;z-index:1000;background:#087b35;color:white;text-align:center;padding:12px;font-size:18px;font-weight:bold}
-#search{position:absolute;top:55px;left:8px;right:8px;z-index:1000;display:flex;background:white;border-radius:28px;padding:5px;box-shadow:0 2px 8px #777}
-#q{flex:1;min-width:0;border:0;outline:0;padding:10px;font-size:15px}
-#go{border:0;border-radius:50%;width:42px;background:#087b35;color:white;font-size:17px}
-#modes{position:absolute;top:111px;left:8px;right:8px;z-index:1000;display:flex;gap:5px}
-#modes button{flex:1;padding:10px 4px;border:0;border-radius:8px;background:white;font-size:12px;font-weight:bold;box-shadow:0 2px 6px #777}
-#modes .active{background:#087b35;color:white}
-#zoom{position:absolute;bottom:22px;left:10px;z-index:1000;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px #777}
-#zoom button{display:block;width:48px;height:46px;border:0;border-bottom:1px solid #ddd;background:white;font-size:27px}
-#right{position:absolute;right:10px;bottom:22px;z-index:1000;display:flex;flex-direction:column;gap:9px}
-#right button{width:49px;height:49px;border:0;border-radius:12px;background:white;box-shadow:0 2px 8px #777;font-size:22px}
-#right #gps{background:#087b35;color:white}
-#status{position:absolute;bottom:24px;left:67px;z-index:1000;max-width:62%;background:white;padding:7px 9px;border-radius:8px;font-size:12px;box-shadow:0 1px 5px #777}
-.leaflet-control-attribution{font-size:9px!important}
+body{margin:0;font-family:Arial,sans-serif;background:#f3f5f7}
+#top{padding:10px;background:#fff;position:relative;z-index:1000}
+h3{margin:0 0 10px;text-align:center}
+#search{display:flex;gap:6px;margin-bottom:8px}
+input{width:100%;min-width:0;padding:11px;border:1px solid #aaa;border-radius:7px;font-size:15px}
+button{padding:10px;border:0;border-radius:7px;background:#087bda;color:white;font-size:14px;cursor:pointer}
+.buttons{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+#status{font-size:13px;margin-top:7px;text-align:center;color:#333}
+#map{height:calc(100vh - 155px);width:100%}
+.zoom{position:absolute;right:12px;top:175px;z-index:1000;display:flex;flex-direction:column;gap:5px}
+.zoom button{font-size:24px;width:45px;height:45px;padding:0;background:#fff;color:#222;border:1px solid #aaa}
 </style>
 </head>
+
 <body>
-<div id="top">Pakistan HD Map</div>
+<div id="top">
+<h3>Pakistan HD Map</h3>
+
 <div id="search">
-<input id="q" placeholder="Shehar ya jagah search karein">
-<button id="go" onclick="searchKaro()">🔍</button>
+<input id="place" placeholder="Shehar, ilaqa ya jagah search karein">
+<button onclick="searchKaro()">Search</button>
 </div>
-<div id="modes">
-<button id="roadBtn" onclick="layerBadlo('road')">Road / Galiyan</button>
-<button id="satBtn" class="active" onclick="layerBadlo('sat')">Satellite HD</button>
-<button id="hyBtn" onclick="layerBadlo('hy')">Satellite + Naam</button>
+
+<div class="buttons">
+<button onclick="roadMap()">Road / Galiyan</button>
+<button onclick="satMap()">Satellite HD</button>
+<button onclick="hybridMap()">Satellite + Naam</button>
+<button onclick="ghar()">Pakistan</button>
+<button onclick="asliGPS()">Live GPS</button>
 </div>
-<div id="zoom">
+
+<div id="status">Map load ho raha hai...</div>
+</div>
+
+<div class="zoom">
 <button onclick="zoomIn()">+</button>
 <button onclick="zoomOut()">−</button>
 </div>
-<div id="right">
-<button onclick="ghar()">🏠</button>
-<button id="gps" onclick="asliGPS()">📍</button>
-</div>
-<div id="status">Pakistan ka map load ho raha hai...</div>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-const statusBox=document.getElementById('status');
 const pakistan=L.latLngBounds([23.4,60.5],[37.2,77.9]);
 
 const map=L.map('map',{
- center:[30.3753,69.3451],
- zoom:6,minZoom:5,maxZoom:19,
- maxBounds:pakistan,maxBoundsViscosity:1,
- zoomControl:false
+center:[30.3753,69.3451],
+zoom:6,
+minZoom:5,
+maxZoom:19,
+maxBounds:pakistan,
+maxBoundsViscosity:1,
+zoomControl:false
 });
 
-L.control.attribution({position:'bottomright'})
- .addTo(map);
-
 const road=L.tileLayer(
- 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
- {maxZoom:19,attribution:'© OpenStreetMap contributors'}
+'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+{maxZoom:19,attribution:'© OpenStreetMap contributors'}
 );
 
 const sat=L.tileLayer(
- 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
- {maxZoom:19,attribution:'Imagery © Esri'}
+'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+{maxZoom:19,attribution:'Imagery © Esri'}
 );
 
 const labels=L.tileLayer(
- 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
- {subdomains:'abcd',maxZoom:19,attribution:'Labels © CARTO'}
+'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
+{subdomains:'abcd',maxZoom:19,attribution:'Labels © CARTO'}
 );
 
-const hybrid=L.layerGroup([sat,labels]);
-let current=sat,marker=null,gpsMarker=null,gpsCircle=null,watch=null;
+let marker=null;
+let gpsMarker=null;
+let gpsCircle=null;
+let watch=null;
+let followGPS=false;
 
 sat.addTo(map);
 
+function status(msg){
+document.getElementById('status').textContent=msg;
+}
+
 function zoomIn(){
- map.zoomIn(1,{animate:false});
+map.setZoom(Math.min(map.getZoom()+1,19));
 }
+
 function zoomOut(){
- map.zoomOut(1,{animate:false});
+map.setZoom(Math.max(map.getZoom()-1,5));
 }
+
+function roadMap(){
+map.removeLayer(sat);
+map.removeLayer(labels);
+if(!map.hasLayer(road)) road.addTo(map);
+status('Road aur galiyon ka map');
+}
+
+function satMap(){
+map.removeLayer(road);
+map.removeLayer(labels);
+if(!map.hasLayer(sat)) sat.addTo(map);
+status('Satellite map');
+}
+
+function hybridMap(){
+map.removeLayer(road);
+if(!map.hasLayer(sat)) sat.addTo(map);
+if(!map.hasLayer(labels)) labels.addTo(map);
+status('Satellite aur available naam');
+}
+
 function ghar(){
- map.fitBounds(pakistan,{animate:false});
- statusBox.textContent='Pakistan ka naqsha khul gaya.';
-}
-
-function layerBadlo(type){
- if(map.hasLayer(current))map.removeLayer(current);
- document.querySelectorAll('#modes button')
- .forEach(b=>b.classList.remove('active'));
-
- if(type==='road'){
-  current=road;
-  document.getElementById('roadBtn').classList.add('active');
- }else if(type==='hy'){
-  current=hybrid;
-  document.getElementById('hyBtn').classList.add('active');
- }else{
-  current=sat;
-  document.getElementById('satBtn').classList.add('active');
- }
- current.addTo(map);
- statusBox.textContent='Map ki layer badal di gayi hai.';
+followGPS=false;
+map.fitBounds(pakistan,{animate:false});
+status('Pakistan ka map');
 }
 
 async function searchKaro(){
- const q=document.getElementById('q').value.trim();
- if(!q){statusBox.textContent='Jagah ka naam likhein.';return;}
- statusBox.textContent='Search ho rahi hai...';
- try{
-  const url='https://nominatim.openstreetmap.org/search?'
-  +new URLSearchParams({q,format:'json',countrycodes:'pk',limit:'1'});
-  const r=await fetch(url);
-  if(!r.ok)throw Error();
-  const d=await r.json();
-  if(!d.length){statusBox.textContent='Jagah nahi mili.';return;}
-  const p=L.latLng(Number(d[0].lat),Number(d[0].lon));
-  if(!pakistan.contains(p)){
-   statusBox.textContent='Jagah Pakistan ki limits se bahar hai.';
-   return;
-  }
-  if(marker)map.removeLayer(marker);
-  marker=L.marker(p).addTo(map).bindPopup(d[0].display_name).openPopup();
-  map.setView(p,17);
-  statusBox.textContent='Search ki hui jagah mil gayi.';
- }catch(e){
-  statusBox.textContent='Search nahi hui. Internet check karein.';
- }
+const q=document.getElementById('place').value.trim();
+
+if(!q){
+status('Pehle jagah ka naam likhein');
+return;
 }
-document.getElementById('q').addEventListener('keydown',e=>{
- if(e.key==='Enter')searchKaro();
+
+followGPS=false;
+status('Jagah search ho rahi hai...');
+
+try{
+const url='https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pk&q='+encodeURIComponent(q);
+const response=await fetch(url);
+const data=await response.json();
+
+if(!data.length){
+status('Jagah nahi mili. Doosra naam try karein');
+return;
+}
+
+const p=L.latLng(Number(data[0].lat),Number(data[0].lon));
+
+if(!pakistan.contains(p)){
+status('Yeh jagah Pakistan ki map boundary se bahar hai');
+return;
+}
+
+if(marker) map.removeLayer(marker);
+
+marker=L.marker(p).addTo(map)
+.bindPopup(data[0].display_name)
+.openPopup();
+
+followGPS=false;
+map.setView(p,17,{animate:false});
+status('Search result: '+data[0].display_name);
+
+}catch(e){
+status('Search nahi ho saki. Internet check karein');
+}
+}
+
+document.getElementById('place').addEventListener('keydown',function(e){
+if(e.key==='Enter') searchKaro();
 });
 
 function asliGPS(){
- if(!navigator.geolocation){
-  statusBox.textContent='Browser GPS support nahi karta.';
-  return;
- }
- statusBox.textContent='GPS permission Allow karein...';
- navigator.geolocation.getCurrentPosition(p=>{
-  updateGPS(p);
-  if(watch!==null)navigator.geolocation.clearWatch(watch);
-  watch=navigator.geolocation.watchPosition(updateGPS,errorGPS,{
-   enableHighAccuracy:true,maximumAge:0,timeout:20000
-  });
- },errorGPS,{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+if(!navigator.geolocation){
+status('Is browser mein GPS available nahi');
+return;
 }
 
-function updateGPS(p){
- const pos=L.latLng(p.coords.latitude,p.coords.longitude);
- if(!pakistan.contains(pos)){
-  statusBox.textContent='GPS location Pakistan map limits se bahar hai.';
-  return;
- }
- if(!gpsMarker){
-  gpsMarker=L.marker(pos).addTo(map);
-  gpsCircle=L.circle(pos,{
-   radius:p.coords.accuracy,color:'#087b35',fillOpacity:0.12
-  }).addTo(map);
- }else{
-  gpsMarker.setLatLng(pos);
-  gpsCircle.setLatLng(pos);
-  gpsCircle.setRadius(p.coords.accuracy);
- }
- gpsMarker.bindPopup('Asli GPS location<br>Accuracy taqreeban '
- +Math.round(p.coords.accuracy)+' meter');
- map.setView(pos,18);
- statusBox.textContent='Live GPS chalu. Accuracy: taqreeban '
- +Math.round(p.coords.accuracy)+' meter.';
+followGPS=true;
+status('GPS location ka intezar hai...');
+
+navigator.geolocation.getCurrentPosition(
+function(pos){
+updateGPS(pos);
+if(watch===null){
+watch=navigator.geolocation.watchPosition(
+updateGPS,
+errorGPS,
+{enableHighAccuracy:true,maximumAge:0,timeout:20000}
+);
+}
+},
+errorGPS,
+{enableHighAccuracy:true,maximumAge:0,timeout:20000}
+);
 }
 
-function errorGPS(e){
- if(e&&e.code===1){
-  statusBox.textContent='Location permission Allow karein.';
- }else if(e&&e.code===3){
-  statusBox.textContent='GPS ka waqt khatam. Dobara koshish karein.';
- }else{
-  statusBox.textContent='GPS nahi mila. Mobile Location ON karein.';
- }
+function updateGPS(pos){
+const p=L.latLng(pos.coords.latitude,pos.coords.longitude);
+
+if(!pakistan.contains(p)){
+followGPS=false;
+status('GPS location Pakistan map boundary se bahar hai');
+return;
 }
 
-road.on('tileerror',()=>statusBox.textContent='Road tiles load nahi huin.');
-sat.on('tileerror',()=>statusBox.textContent='Satellite tiles load nahi huin.');
+if(!gpsMarker){
+gpsMarker=L.circleMarker(p,{
+radius:8,color:'#ffffff',weight:3,
+fillColor:'#087bda',fillOpacity:1
+}).addTo(map).bindPopup('Aap ki GPS location');
+}else{
+gpsMarker.setLatLng(p);
+}
 
-map.on('moveend',()=>{
- if(!map.getBounds().intersects(pakistan)){
-  map.fitBounds(pakistan,{animate:false});
- }
+if(!gpsCircle){
+gpsCircle=L.circle(p,{
+radius:pos.coords.accuracy,
+color:'#087bda',fillColor:'#087bda',fillOpacity:0.12
+}).addTo(map);
+}else{
+gpsCircle.setLatLng(p);
+gpsCircle.setRadius(pos.coords.accuracy);
+}
+
+if(followGPS){
+map.setView(p,18,{animate:false});
+}
+
+status('GPS accuracy taqreeban '+Math.round(pos.coords.accuracy)+' meter');
+}
+
+function errorGPS(err){
+followGPS=false;
+
+if(err.code===1){
+status('GPS permission allow karein');
+}else if(err.code===2){
+status('GPS location nahi mil rahi');
+}else{
+status('GPS timeout. Dobara Live GPS dabayein');
+}
+}
+
+map.on('dragstart',function(){
+followGPS=false;
+});
+
+map.whenReady(function(){
+status('Pakistan map tayyar hai');
 });
 </script>
 </body>
