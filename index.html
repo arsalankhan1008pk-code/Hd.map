@@ -1,106 +1,131 @@
 <!DOCTYPE html>
-<html>
+<html lang="ur">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pakistan HD Map - Asli GPS</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-#map{height:100vh;width:100vw}
-#top{position:absolute;top:0;left:0;right:0;z-index:1000;background:#0d7a2e;color:white;text-align:center;padding:14px;font-weight:bold;font-size:16px}
-#search{position:absolute;top:60px;left:10px;right:115px;z-index:1000;background:white;border-radius:25px;display:flex;padding:4px 12px;box-shadow:0 2px 10px rgba(0,0,0,.4)}
-#search input{flex:1;border:none;outline:none;padding:10px;font-size:14px}
-#search button{border:none;background:#0d7a2e;color:white;width:36px;height:36px;border-radius:50%}
-.btns{position:absolute;top:60px;right:8px;z-index:1000;display:flex;flex-direction:column;gap:7px}
-.btns button{padding:11px 15px;border:none;border-radius:22px;background:white;font-weight:bold;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-.btns button.active{background:#0d7a2e;color:white}
-#gps{position:absolute;bottom:25px;right:15px;z-index:1000;width:62px;height:62px;border-radius:50%;border:none;background:#0d7a2e;color:white;font-size:30px;box-shadow:0 4px 15px rgba(0,0,0,.6)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial}
+#map{height:100dvh;width:100%}
+#top{position:absolute;top:0;left:0;right:0;z-index:1000;background:#087b35;color:white;text-align:center;padding:12px;font-weight:bold;font-size:15px}
+#search{position:absolute;top:52px;left:8px;right:8px;z-index:1000;display:flex;background:white;border-radius:25px;padding:5px 5px 5px 15px;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+#q{flex:1;border:0;outline:0;font-size:15px;background:transparent}
+#go{background:#087b35;color:white;border:0;border-radius:20px;padding:10px 18px;font-weight:bold;margin-left:5px}
+#layers{position:absolute;top:110px;right:8px;z-index:1000;display:flex;flex-direction:column;gap:7px}
+#layers button{background:white;border:0;border-radius:20px;padding:10px 14px;font-weight:bold;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#layers button.active{background:#087b35;color:white}
+#gps{position:absolute;right:14px;bottom:30px;z-index:1000;width:62px;height:62px;border-radius:50%;border:0;background:#087b35;color:white;font-size:28px;box-shadow:0 4px 15px rgba(0,0,0,.6)}
+#info{position:absolute;bottom:8px;left:8px;z-index:1000;background:rgba(255,255,255,.95);padding:8px 12px;border-radius:10px;font-size:12px;max-width:68%;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.leaflet-control-zoom{margin-top:160px!important;margin-left:10px!important}
 </style>
 </head>
 <body>
-<div id="top">🇵🇰 PAKISTAN KA FULL HD MAP - ASLI GPS + GALIYAN SAAF</div>
+<div id="top">PAKISTAN KA ASLI HD MAP - GPS + GALIYAN SAAF</div>
 
 <div id="search">
-<input id="q" type="text" placeholder="Karachi, Lahore search karo...">
-<button onclick="searchKaro()">🔍</button>
+<input id="q" placeholder="Karachi, Lahore, Islamabad, gali search karo...">
+<button id="go" onclick="searchKaro()">Search</button>
 </div>
 
-<div class="btns">
-<button id="bt1" class="active" onclick="layerBadlo('road')">Road / Galiyan</button>
-<button id="bt2" onclick="layerBadlo('sat')">HD Satellite</button>
-<button id="bt3" onclick="layerBadlo('hybrid')">Satellite + Naam</button>
+<div id="layers">
+<button id="roadBtn" onclick="mapBadlo('road')">Road / Galiyan</button>
+<button id="satBtn" class="active" onclick="mapBadlo('sat')">HD Satellite</button>
+<button id="hyBtn" onclick="mapBadlo('hy')">Satellite + Naam</button>
 </div>
 
-<button id="gps" onclick="asliLocation()">📍</button>
+<button id="gps" onclick="gpsChalu()">📍</button>
+<div id="info">Pakistan HD map load ho raha hai... Zoom karo ghar saaf dikhega</div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// PAKISTAN CENTER
-var PAK = [30.3753, 69.3451];
-var PAK_BOUNDS = [[23.5, 60.5], [37.5, 80.0]];
+const info = document.getElementById('info');
+// PAKISTAN KI HAD - is se bahar nahi jayega
+const PAK_BOUNDS = L.latLngBounds([23.4, 60.4],[37.3, 78.0]);
+
+const map = L.map('map',{
+  center:[30.3753,69.3451],
+  zoom:6,
+  minZoom:6,
+  maxZoom:22,
+  maxBounds: PAK_BOUNDS,
+  maxBoundsViscosity: 1.0,
+  attributionControl:false
+});
 
 // HD LAYERS
-var roadLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19});
-var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19});
-var nameLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',{maxZoom:20});
-var hybridLayer = L.layerGroup([satLayer, nameLayer]);
+const road = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19});
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19});
+const naam = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',{maxZoom:22,subdomains:'abcd'});
+const hybrid = L.layerGroup([sat, naam]);
 
-// MAP - Sirf Pakistan
-var map = L.map('map',{
-center: PAK,
-zoom: 6,
-layers: [roadLayer],
-zoomControl: false,
-maxBounds: PAK_BOUNDS,
-maxBoundsViscosity: 1.0
-});
-L.control.zoom({position:'topleft'}).addTo(map);
+let current = sat;
+sat.addTo(map);
+map.on('load',()=> info.textContent='HD Satellite load ho gaya - gali me zoom karo');
+sat.on('load',()=> info.textContent='HD Map ready hai - 📍 dabao GPS ke liye');
 
-var current = roadLayer;
-function layerBadlo(type){
+// LAYER BADLO
+function mapBadlo(type){
   map.removeLayer(current);
-  document.getElementById('bt1').classList.remove('active');
-  document.getElementById('bt2').classList.remove('active');
-  document.getElementById('bt3').classList.remove('active');
-  if(type=='road'){ current = roadLayer; document.getElementById('bt1').classList.add('active'); }
-  if(type=='sat'){ current = satLayer; document.getElementById('bt2').classList.add('active'); }
-  if(type=='hybrid'){ current = hybridLayer; document.getElementById('bt3').classList.add('active'); }
+  document.querySelectorAll('#layers button').forEach(b=>b.classList.remove('active'));
+  if(type=='road'){ current=road; document.getElementById('roadBtn').classList.add('active'); info.textContent='Road / Galiyan wala map - har gali saaf'; }
+  if(type=='sat'){ current=sat; document.getElementById('satBtn').classList.add('active'); info.textContent='HD Satellite - ghar ki chat saaf dekho'; }
+  if(type=='hy'){ current=hybrid; document.getElementById('hyBtn').classList.add('active'); info.textContent='Satellite + Naam - ghar + naam dono'; }
   map.addLayer(current);
 }
 
-// ASLI LIVE GPS - Koi Farzi Nishan Nahi
-var liveM, liveC;
-function asliLocation(){
-  if(!navigator.geolocation){ alert("Is mobile me GPS nahi hai"); return; }
-  navigator.geolocation.getCurrentPosition(function(pos){
-    var ll = [pos.coords.latitude, pos.coords.longitude];
-    if(liveM) map.removeLayer(liveM);
-    if(liveC) map.removeLayer(liveC);
-    liveC = L.circle(ll,{radius:pos.coords.accuracy,color:'#0d7a2e',fillOpacity:0.15}).addTo(map);
-    liveM = L.marker(ll).addTo(map).bindPopup("<b>📍 Tumhari Asli Location</b><br>Accuracy: "+Math.round(pos.coords.accuracy)+" meter").openPopup();
-    map.setView(ll, 18);
-  }, function(err){
-    alert("Bhai Location ON karo aur Allow dabao");
-  }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+// SEARCH - SIRF PAKISTAN
+async function searchKaro(){
+  let q = document.getElementById('q').value.trim();
+  if(!q){ info.textContent='Pehle naam likho - jaise Karachi'; return; }
+  info.textContent='Search ho raha hai...';
+  try{
+    let url = `https://nominatim.openstreetmap.org/search?format=json&q=${q}&countrycodes=pk&limit=1`;
+    let res = await fetch(url);
+    let data = await res.json();
+    if(!data.length){ info.textContent='Pakistan me ye jagah nahi mili - sahi naam likho'; return; }
+    let lat = Number(data[0].lat), lon = Number(data[0].lon);
+    let p = L.latLng(lat,lon);
+    if(!PAK_BOUNDS.contains(p)){ info.textContent='Ye jagah Pakistan se bahar hai - sirf Pakistan search karo'; return; }
+    L.marker(p).addTo(map).bindPopup(data[0].display_name).openPopup();
+    map.setView(p,18);
+    info.textContent='Jagah mil gayi - zoom karo aur galiyan dekho';
+  }catch(e){ info.textContent='Internet check karo'; }
+}
+document.getElementById('q').addEventListener('keydown', e=>{ if(e.key=='Enter') searchKaro(); });
+
+// LIVE GPS - ASLI LOCATION
+let gpsMarker, gpsCircle, watch;
+function gpsChalu(){
+  if(!navigator.geolocation){ info.textContent='Is mobile me GPS nahi'; return; }
+  info.textContent='GPS ON karo - Allow dabao - location aa rahi hai...';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    let ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+    if(!PAK_BOUNDS.contains(ll)){ info.textContent='Aap Pakistan se bahar ho - GPS Pakistan me hi kaam karega'; return; }
+    if(gpsMarker) map.removeLayer(gpsMarker);
+    if(gpsCircle) map.removeLayer(gpsCircle);
+    gpsCircle = L.circle(ll,{radius:pos.coords.accuracy,color:'#087b35',fillColor:'#087b35',fillOpacity:0.15}).addTo(map);
+    gpsMarker = L.marker(ll).addTo(map).bindPopup(`<b>📍 Tumhari Asli Location</b><br>Accuracy: ${Math.round(pos.coords.accuracy)} meter<br>Ab zoom karo ghar saaf`).openPopup();
+    map.setView(ll,19);
+    info.textContent=`GPS mil gaya! Accuracy: ${Math.round(pos.coords.accuracy)} meter - zoom karo ghar saaf`;
+
+    if(watch) navigator.geolocation.clearWatch(watch);
+    watch = navigator.geolocation.watchPosition(p2=>{
+      let ll2 = L.latLng(p2.coords.latitude,p2.coords.longitude);
+      if(!PAK_BOUNDS.contains(ll2)) return;
+      gpsMarker.setLatLng(ll2);
+      gpsCircle.setLatLng(ll2);
+      gpsCircle.setRadius(p2.coords.accuracy);
+      info.textContent=`Live GPS chalu - Accuracy: ${Math.round(p2.coords.accuracy)} meter`;
+    },null,{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+
+  },()=>{ info.textContent='Location ON karo aur Allow dabao - setting se location on karo'; },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 }
 
-// SEARCH - Sirf Pakistan me
-async function searchKaro(){
-  var val = document.getElementById('q').value;
-  if(!val) return;
-  var url = `https://nominatim.openstreetmap.org/search?format=json&q=${val}&countrycodes=pk&limit=1`;
-  var r = await fetch(url);
-  var d = await r.json();
-  if(d.length>0){
-    var lat = d[0].lat, lon = d[0].lon;
-    map.setView([lat,lon], 15);
-    L.marker([lat,lon]).addTo(map).bindPopup(d[0].display_name).openPopup();
-  } else {
-    alert("Jagah nahi mili, dosra naam likho");
-  }
-}
+// PAKISTAN SE BAHAR NA JAYE
+map.on('drag',()=>{ if(!PAK_BOUNDS.contains(map.getCenter())){ map.panInsideBounds(PAK_BOUNDS,{animate:true}); } });
 </script>
 </body>
 </html>
