@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pakistan Road Route</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f5f7f5}
+header{background:#07883d;color:white;text-align:center;padding:15px;font-size:23px;font-weight:bold}
+.panel{background:white;padding:12px}
+input{width:100%;padding:12px;margin:5px 0 10px;border:1px solid #aaa;border-radius:7px;font-size:16px}
+button{width:100%;padding:13px;background:#07883d;color:white;border:0;border-radius:7px;font-size:16px;font-weight:bold}
+#result{padding:10px;font-size:15px;line-height:1.6}
+#map{height:55vh;min-height:330px;width:100%}
+</style>
+</head>
+<body>
+<header>Pakistan Road Route</header>
+
+<div class="panel">
+<label>From - Shuru kahan se karna hai?</label>
+<input id="from" value="Saddar, Karachi, Pakistan">
+
+<label>To - Kahan jana hai?</label>
+<input id="to" value="Lahore, Pakistan">
+
+<button id="routeButton" type="button">Show Road Route</button>
+<div id="result"></div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map',{
+maxBounds:[[23,60],[37.8,78.5]],
+maxBoundsViscosity:0.8
+}).setView([30.3753,69.3451],5);
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}
+).addTo(map);
+
+let routeLine=null;
+let startMarker=null;
+let endMarker=null;
+let busy=false;
+
+function message(text){
+document.getElementById('result').textContent=text;
+}
+
+async function findLocation(name){
+const url='https://nominatim.openstreetmap.org/search?format=json&countrycodes=pk&limit=1&q='+encodeURIComponent(name);
+const response=await fetch(url);
+if(!response.ok)throw Error('Location search failed');
+const data=await response.json();
+if(!data.length)throw Error('Location not found: '+name);
+
+const p=data[0];
+const lat=Number(p.lat),lon=Number(p.lon);
+if(lat<23||lat>37.8||lon<60||lon>78.5){
+throw Error('Location Pakistan ke andar nahi hai.');
+}
+return {lat:lat,lon:lon,name:p.display_name};
+}
+
+async function showRoute(){
+if(busy)return;
+
+const from=document.getElementById('from').value.trim();
+const to=document.getElementById('to').value.trim();
+if(!from||!to)return;
+
+busy=true;
+const button=document.getElementById('routeButton');
+button.disabled=true;
+button.textContent='Route dhoondh rahe hain...';
+message('Locations aur road route search ho raha hai...');
+
+try{
+const a=await findLocation(from);
+const b=await findLocation(to);
+
+const url='https://router.project-osrm.org/route/v1/driving/'
++a.lon+','+a.lat+';'+b.lon+','+b.lat
++'?overview=full&geometries=geojson&steps=true';
+
+const response=await fetch(url);
+if(!response.ok)throw Error('Route service unavailable');
+
+const data=await response.json();
+if(data.code!=='Ok'||!data.routes.length){
+throw Error('Driving route nahi mila.');
+}
+
+const route=data.routes[0];
+const coords=route.geometry.coordinates.map(p=>[p[1],p[0]]);
+
+if(routeLine)map.removeLayer(routeLine);
+if(startMarker)map.removeLayer(startMarker);
+if(endMarker)map.removeLayer(endMarker);
+
+routeLine=L.polyline(coords,{
+color:'#07883d',
+weight:5,
+opacity:0.9
+}).addTo(map);
+
+startMarker=L.marker([a.lat,a.lon]).addTo(map)
+.bindPopup('Starting point: '+a.name);
+endMarker=L.marker([b.lat,b.lon]).addTo(map)
+.bindPopup('Destination: '+b.name);
+
+map.fitBounds(routeLine.getBounds(),{padding:[25,25]});
+
+const km=(route.distance/1000).toFixed(1);
+const mins=Math.round(route.duration/60);
+const hours=Math.floor(mins/60);
+const remaining=mins%60;
+const time=hours>0?hours+' ghante '+remaining+' minute':remaining+' minute';
+
+message('Distance: '+km+' km | Andazay ka driving time: '+time+'. Traffic aur road conditions se waqt badal sakta hai.');
+}catch(e){
+message('Route nahi mil saka. Internet check karein aur jagah ka naam dobara try karein.');
+}finally{
+busy=false;
+button.disabled=false;
+button.textContent='Show Road Route';
+}
+}
+
+document.getElementById('routeButton').addEventListener('click',showRoute);
+</script>
+</body>
+</html>
