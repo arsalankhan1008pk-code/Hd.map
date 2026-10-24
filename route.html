@@ -1,79 +1,88 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pakistan HD Map - Road Route</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-body{margin:0;font-family:sans-serif}
-#map{height:85vh;width:100%}
-.top{padding:10px;background:#fff;display:flex;gap:5px;flex-wrap:wrap}
-input{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;min-width:120px}
-button{padding:10px 15px;background:#000;color:#fff;border:none;border-radius:8px;font-weight:bold}
-.info{padding:5px 10px;font-size:14px;background:#f0f0f0}
+body{margin:0;font-family:Arial;background:#f4f7f4}
+header{background:#087d35;color:white;padding:14px;text-align:center;font-size:22px;font-weight:bold}
+.controls{padding:12px;background:white;display:grid;gap:8px}
+input,button{padding:12px;font-size:16px;border:1px solid #bbb;border-radius:6px}
+button{background:#087d35;color:white;border:0;font-weight:bold}
+#status{padding:10px;color:#087d35;font-size:14px}
+#map{height:60vh;width:100%}
 </style>
 </head>
 <body>
-<div class="top">
-<input id="from" value="Saddar, Karachi, Pakistan" placeholder="From">
-<input id="to" value="Lahore, Pakistan" placeholder="To">
+<header>Pakistan HD Map - Road Route</header>
+<div class="controls">
+<input id="from" value="Saddar, Karachi, Pakistan" placeholder="Starting place">
+<input id="to" value="Lahore, Pakistan" placeholder="Destination">
 <button onclick="showRoute()">Show Road Route</button>
+<button onclick="locateMe()">Use My GPS Location</button>
 </div>
-<div class="info" id="info">Click Show Road Route to see Uber/Careem style route</div>
+<div id="status">Starting place aur destination check karein.</div>
 <div id="map"></div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 <script>
-var map = L.map('map').setView([30.3753, 69.3451], 5);
+const map=L.map('map').setView([30.5,69.3],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19, attribution:'© OpenStreetMap'
+maxZoom:19,
+attribution:'© OpenStreetMap contributors'
 }).addTo(map);
-
-var control = null;
-
-function showRoute(){
-var fromText = document.getElementById('from').value;
-var toText = document.getElementById('to').value;
-
-if(control){ map.removeControl(control); }
-
-document.getElementById('info').innerHTML = "Loading route from "+fromText+" to "+toText+"...";
-
-// Use OSRM free routing with geocoding via Nominatim
-Promise.all([
-fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(fromText)).then(r=>r.json()),
-fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(toText)).then(r=>r.json())
-]).then(results=>{
-var from = results[0][0];
-var to = results[1][0];
-if(!from || !to){ document.getElementById('info').innerHTML="Location not found! Try again"; return; }
-
-var fromLatLng = L.latLng(from.lat, from.lon);
-var toLatLng = L.latLng(to.lat, to.lon);
-
-control = L.Routing.control({
-waypoints: [fromLatLng, toLatLng],
-router: L.Routing.osrmv1({serviceUrl: 'https://router.project-osrm.org/route/v1'}),
-lineOptions: {styles:[{color:'black', weight:8, opacity:0.8},{color:'#00bfff', weight:5, opacity:1}]},
-createMarker: function(i, wp, nWps){ return L.marker(wp.latLng).bindPopup(i==0 ? fromText : toText); }
-}).on('routesfound', function(e){
-var r = e.routes[0];
-var km = (r.summary.totalDistance/1000).toFixed(1);
-var min = Math.round(r.summary.totalTime/60);
-document.getElementById('info').innerHTML = "Distance: "+km+" KM | Time: "+min+" min | Route: "+fromText+" to "+toText;
-map.fitBounds(L.latLngBounds([fromLatLng, toLatLng]));
-}).addTo(map);
-
-}).catch(err=>{
-document.getElementById('info').innerHTML="Error: "+err.message;
-});
+let routeLayer=null;
+let markers=[];
+function status(t){
+document.getElementById('status').textContent=t;
 }
-
-// Auto load on start
-window.onload = showRoute;
+async function findPlace(q){
+const url='https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pk&q='+encodeURIComponent(q);
+const r=await fetch(url);
+const d=await r.json();
+if(!d.length)throw Error('Place nahi mila: '+q);
+return [Number(d[0].lon),Number(d[0].lat)];
+}
+async function showRoute(){
+const from=document.getElementById('from').value.trim();
+const to=document.getElementById('to').value.trim();
+if(!from||!to){status('Dono jagah ke naam likhein.');return;}
+status('Jagah aur road route dhoonda ja raha hai...');
+try{
+const a=await findPlace(from);
+const b=await findPlace(to);
+const url='https://router.project-osrm.org/route/v1/driving/'+a.join(',')+';'+b.join(',')+'?overview=full&geometries=geojson';
+const r=await fetch(url);
+const d=await r.json();
+if(d.code!=='Ok'||!d.routes.length)throw Error('Road route nahi mila.');
+const route=d.routes[0];
+if(routeLayer)map.removeLayer(routeLayer);
+markers.forEach(m=>map.removeLayer(m));
+markers=[];
+routeLayer=L.geoJSON(route.geometry,{style:{color:'#087d35',weight:5}}).addTo(map);
+markers.push(L.marker([a[1],a[0]]).addTo(map).bindPopup('Starting place'));
+markers.push(L.marker([b[1],b[0]]).addTo(map).bindPopup('Destination'));
+map.fitBounds(routeLayer.getBounds(),{padding:[25,25]});
+const km=(route.distance/1000).toFixed(1);
+const mins=Math.round(route.duration/60);
+const hours=Math.floor(mins/60);
+const remaining=mins%60;
+status('Distance: '+km+' km | Andazay ka driving time: '+hours+' ghante '+remaining+' minute. Traffic ke mutabiq waqt badal sakta hai.');
+}catch(e){status('Route nahi mil saka. Internet check karein ya jagah ke naam badal kar dobara koshish karein.');}
+}
+function locateMe(){
+if(!navigator.geolocation){status('Is browser mein GPS available nahi.');return;}
+status('GPS location li ja rahi hai...');
+navigator.geolocation.getCurrentPosition(p=>{
+const lat=p.coords.latitude,lon=p.coords.longitude;
+map.setView([lat,lon],15);
+L.marker([lat,lon]).addTo(map).bindPopup('Aap ki GPS location').openPopup();
+document.getElementById('from').value=lat+','+lon;
+status('GPS location mil gayi. Ab destination likh kar route dekhein.');
+},()=>status('GPS nahi mila. Browser mein location permission allow karein.'));
+}
 </script>
 </body>
 </html>
