@@ -1,64 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakistan HD Map - Route</title>
+<title>Route 1 - Simple</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<style>
-*{box-sizing:border-box;font-family:Arial,sans-serif}
-body{margin:0;background:#fff}
-header{padding:10px;box-shadow:0 2px 8px #bbb;position:relative;z-index:10}
-h3{margin:4px 0 10px;color:green}
-.search{display:block;width:100%;padding:13px;margin:7px 0;border:0;border-radius:22px;background:#f1f3f4;font-size:16px}
-.buttons{display:flex;gap:8px}
-button{flex:1;padding:12px;border:0;border-radius:22px;font-weight:bold}
-.blue{background:#1a73e8;color:white}
-.white{background:white;border:1px solid #ccc;color:#1a73e8}
-#status{padding:10px;background:#e8f0fe;color:#174ea6;font-size:13px}
-#map{height:50vh;min-height:300px}
-#panel{padding:12px;max-height:30vh;overflow:auto}
-.step{padding:10px 4px;border-bottom:1px solid #ddd}
-</style>
+<style>body{margin:0} #map{height:100vh; width:100%} </style>
 </head>
 <body>
-<header>
-<h3>Pakistan HD Map</h3>
-<input id="from" class="search" value="Saddar, Karachi" placeholder="Start location">
-<input id="to" class="search" value="Clifton, Karachi" placeholder="Destination">
-<div class="buttons">
-<button class="blue" onclick="getRoute()">Directions</button>
-<button class="white" onclick="locate()">My Location</button>
-</div>
-</header>
-<div id="status">Pakistan route map tayyar hai</div>
 <div id="map"></div>
-<div id="panel">Start aur destination select karein.</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map=L.map('map').setView([24.86,67.03],11);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19,attribution:'© OpenStreetMap contributors'
-}).addTo(map);
-const routeLayer=L.layerGroup().addTo(map);
-const markerLayer=L.layerGroup().addTo(map);
-const statusBox=document.getElementById('status');
-const panel=document.getElementById('panel');
-
-function status(t){statusBox.textContent=t}
-function inPakistan(lat,lon){
-return lat>=23.5&&lat<=37.5&&lon>=60.5&&lon<=77.5;
-}
-function clearRoute(){
-routeLayer.clearLayers();
-markerLayer.clearLayers();
-panel.textContent='Route dhoonda ja raha hai...';
-}
-function coordinates(q){
-const p=q.split(',').map(v=>v.trim());
-if(p.length!==2||p.some(v=>v===''))return null;
-const lat=Number(p[0]),lon=Number(p[1]);
-if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat < -90||lat > 90||lon < -180||lon > 180)return null;
-return [lon,lat];
-}
-async
+const map = L.map('map').setView([24.86, 67.03], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+// Saddar to Clifton fixed route
+fetch('https://router.project-osrm.org/route/v1/driving/67.0331,24.8615;67.0359,24.8138?overview=full&geometries=geojson')
+.then(r=>r.json()).then(d=>{
+  const line = L.geoJSON(d.routes[0].geometry,{color:'#1a73e8',weight:6}).addTo(map);
+  map.fitBounds(line.getBounds(),{padding:[20,20]});
+});
+</script>
+</body>
+</html>
