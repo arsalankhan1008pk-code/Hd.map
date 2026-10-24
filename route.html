@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Route Option 1 - Simple</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#fff}
+header{padding:12px;box-shadow:0 2px 8px #ccc;background:#fff;position:relative;z-index:10}
+h3{margin:0 0 10px;color:green}
+.search{width:100%;padding:13px;margin:6px 0;border:0;border-radius:22px;background:#f1f3f4;font-size:16px}
+.buttons{display:flex;gap:8px;margin-top:6px}
+button{flex:1;padding:12px;border:0;border-radius:22px;font-weight:bold;cursor:pointer}
+.blue{background:#1a73e8;color:#fff}
+.white{background:#fff;border:1px solid #ccc;color:#1a73e8}
+#status{padding:10px;background:#e8f0fe;color:#174ea6;font-size:13px}
+#map{height:420px;width:100%;background:#e5e3df}
+#panel{padding:12px;max-height:35vh;overflow:auto}
+.step{padding:10px 4px;border-bottom:1px solid #eee;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+<h3>Route - Option 1</h3>
+<input id="from" class="search" value="Saddar, Karachi" placeholder="Start - Pakistan me">
+<input id="to" class="search" value="Clifton, Karachi" placeholder="Destination - Pakistan me">
+<div class="buttons">
+<button class="blue" onclick="getRoute()">Directions</button>
+<button class="white" onclick="locate()">📍 My Location</button>
+</div>
+</header>
+<div id="status">Ready - Pakistan route</div>
+<div id="map"></div>
+<div id="panel">Start aur destination likhein.</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map').setView([24.86,67.01],11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(map);
+const routeLayer=L.layerGroup().addTo(map), markerLayer=L.layerGroup().addTo(map);
+const statusBox=document.getElementById('status'), panel=document.getElementById('panel');
+setTimeout(()=>map.invalidateSize(),600);
+function status(t){statusBox.textContent=t}
+function inPakistan(lat,lon){return lat>=23.5&&lat<=37.5&&lon>=60.5&&lon<=77.5}
+function clearRoute(){routeLayer.clearLayers();markerLayer.clearLayers();}
+function isCoord(q){const p=q.split(',').map(v=>v.trim());if(p.length!==2)return null;const lat=Number(p[0]),lon=Number(p[1]);if(!isFinite(lat)||!isFinite(lon))return null;return [lon,lat]}
+async function geocode(q){
+const c=isCoord(q);if(c){if(!inPakistan(c[1],c[0]))throw Error('Coordinates Pakistan se bahar hain');return c;}
+const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pk&q='+encodeURIComponent(q);
+const r=await fetch(url);const d=await r.json();if(!d.length)throw Error('Jagah nahi mili: '+q);
+const lon=Number(d[0].lon),lat=Number(d[0].lat);if(!inPakistan(lat,lon))throw Error('Jagah Pakistan se bahar hai');return [lon,lat];
+}
+async function getRoute(){
+clearRoute();const from=document.getElementById('from').value.trim(),to=document.getElementById('to').value.trim();
+if(!from||!to){status('Dono jagah likhein');return}
+try{
+status('Route dhoond rahe hain...');const a=await geocode(from),b=await geocode(to);
+const url=`https://router.project-osrm.org/route/v1/driving/${a.join(',')};${b.join(',')}?overview=full&geometries=geojson&steps=true`;
+const res=await fetch(url);const data=await res.json();if(data.code!=='Ok')throw Error('Road route nahi mila');
+const route=data.routes[0];const line=L.geoJSON(route.geometry,{style:{color:'#1a73e8',weight:6}}).addTo(routeLayer);
+L.marker([a[1],a[0]]).addTo(markerLayer).bindPopup('Start: '+from);L.marker([b[1],b[0]]).addTo(markerLayer).bindPopup('End: '+to);
+map.fitBounds(line
